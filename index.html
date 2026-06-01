@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Spydee — Swiggy for Hoardings. Hyper-local OOH advertising marketplace for Pune & PCMC." />
+  <title>🕷 Spydee — OOH Marketplace · Pune & PCMC</title>
+
+  <!-- Tailwind CDN (utility classes available) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <!-- Favicon emoji -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕷</text></svg>" />
+</head>
+<body>
+
+  <!-- App Root -->
+  <div id="app">
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0a0f;color:#f0f0f8;font-family:'DM Sans',sans-serif;">
+      <div style="text-align:center">
+        <div style="font-size:48px;margin-bottom:16px">🕷</div>
+        <div style="font-size:20px;font-weight:700;color:#f5a623">Loading Spydee...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Portal -->
+  <div id="modal-overlay" onclick="handleOverlayClick(event)"></div>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- ── Scripts (order matters) ── -->
+  <script src="js/data.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/landing.js"></script>
+  <script src="js/advertiser.js"></script>
+  <script src="js/vendor.js"></script>
+  <script src="js/admin-printer.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    // Close modal when clicking outside the card
+    function handleOverlayClick(e) {
+      if (e.target === document.getElementById('modal-overlay')) {
+        closeModal();
+      }
+    }
+  </script>
+</body>
+</html>
