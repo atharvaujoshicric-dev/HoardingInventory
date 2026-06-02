@@ -4,21 +4,22 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Spydee — OOH Marketplace · Pune & PCMC</title>
-  <meta name="description" content="India's first hyper-local outdoor advertising marketplace. Book hoardings in Pune and PCMC instantly."/>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕷</text></svg>"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <!-- Leaflet Real Map -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <link rel="stylesheet" href="css/styles.css"/>
 </head>
 <body>
   <div id="app"></div>
   <div id="modal-overlay"></div>
   <div id="toast-container"></div>
-
-  <!-- Scripts (order matters: data → state → ui modules → app) -->
   <script src="js/data.js"></script>
   <script src="js/state.js"></script>
   <script src="js/landing.js"></script>
+  <script src="js/map.js"></script>
   <script src="js/advertiser.js"></script>
   <script src="js/vendor.js"></script>
   <script src="js/admin-printer.js"></script>

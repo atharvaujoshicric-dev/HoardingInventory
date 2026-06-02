@@ -135,13 +135,14 @@ const AppState = {
     const h=SPYDEE_DATA.hoardings.find(x=>x.id===hoardingId);
     if(!h||h.status!=='on-hold') return {ok:false,msg:'No active hold.'};
     const user=SPYDEE_DATA.users.find(u=>u.id===h.holdBy);
-    if(user) user.wallet+=h.holdDeposit;
+    const refund = h.holdDeposit || 0; // capture BEFORE clearing
+    if(user) user.wallet+=refund;
     h.status='available'; h.holdBy=null; h.holdExpiry=null; h.holdDeposit=0;
     if(this.currentUser?.id===user?.id) this.currentUser.wallet=user.wallet;
     clearInterval(this.holdTimers[hoardingId]?.interval);
     delete this.holdTimers[hoardingId];
     this.save();
-    return {ok:true};
+    return {ok:true, refund};
   },
 
   startHoldCountdown(hoardingId,expiry) {
@@ -250,7 +251,7 @@ const AppState = {
     if(this.currentUser.role!=='superadmin' && h.vendorId!==this.currentUser.id) return {ok:false};
     Object.assign(h,data);
     this.save();
-    return {ok:true};
+    return {ok:true,refund:h.holdDeposit||0};
   },
 
   deleteInventory(id) {
@@ -261,7 +262,7 @@ const AppState = {
     const vendor=SPYDEE_DATA.users.find(u=>u.id===h.vendorId);
     if(vendor) vendor.inventoryIds=vendor.inventoryIds.filter(i=>i!==id);
     this.save();
-    return {ok:true};
+    return {ok:true,refund:h.holdDeposit||0};
   },
 
   uploadHoardingImage(hoardingId,dataUrl) {
@@ -278,7 +279,7 @@ const AppState = {
     if(!h||!h.images) return {ok:false};
     h.images.splice(index,1);
     this.save();
-    return {ok:true};
+    return {ok:true,refund:h.holdDeposit||0};
   },
 
   // ── Print Jobs ────────────────────────────────────────────────
@@ -313,7 +314,7 @@ const AppState = {
     if(printer?.acceptedJobs) printer.acceptedJobs.push(jobId);
     this.addNotification(pj.customerId,'✅ Printer Accepted',`Job ${jobId} is in progress.`,'success');
     this.save();
-    return {ok:true};
+    return {ok:true,refund:h.holdDeposit||0};
   },
 
   markPrintJobDispatched(jobId,trackingNote) {
@@ -330,19 +331,19 @@ const AppState = {
     }
     this.addNotification(pj.customerId,'🚚 Dispatched',`Job ${jobId} dispatched.`,'success');
     this.save();
-    return {ok:true};
+    return {ok:true,refund:h.holdDeposit||0};
   },
 
   updatePrintJobArtwork(jobId,artworkUrl) {
     const pj=SPYDEE_DATA.printJobs.find(j=>j.id===jobId);
     if(!pj) return {ok:false};
-    pj.artworkUrl=artworkUrl; this.save(); return {ok:true};
+    pj.artworkUrl=artworkUrl; this.save(); return {ok:true,refund:h.holdDeposit||0};
   },
 
   deletePrintJobArtwork(jobId) {
     const pj=SPYDEE_DATA.printJobs.find(j=>j.id===jobId);
     if(!pj) return {ok:false};
-    pj.artworkUrl=null; this.save(); return {ok:true};
+    pj.artworkUrl=null; this.save(); return {ok:true,refund:h.holdDeposit||0};
   },
 
   // ── Admin Full Powers ─────────────────────────────────────────
@@ -350,7 +351,7 @@ const AppState = {
     const user=SPYDEE_DATA.users.find(u=>u.id===userId);
     if(!user) return {ok:false};
     Object.assign(user,fields);
-    this.save(); return {ok:true};
+    this.save(); return {ok:true,refund:h.holdDeposit||0};
   },
 
   adminSuspendUser(userId) {
@@ -364,7 +365,7 @@ const AppState = {
     const idx=SPYDEE_DATA.users.findIndex(u=>u.id===userId);
     if(idx===-1) return {ok:false};
     SPYDEE_DATA.users.splice(idx,1);
-    this.save(); return {ok:true};
+    this.save(); return {ok:true,refund:h.holdDeposit||0};
   },
 
   adminTopUpWallet(userId,amount) {
@@ -379,13 +380,13 @@ const AppState = {
     const user=SPYDEE_DATA.users.find(u=>u.id===userId);
     if(!user) return {ok:false};
     user.verified=true; user.otpVerified=true;
-    this.save(); return {ok:true};
+    this.save(); return {ok:true,refund:h.holdDeposit||0};
   },
 
   adminUpdateBooking(bookingId,fields) {
     const b=SPYDEE_DATA.bookings.find(x=>x.id===bookingId);
     if(!b) return {ok:false};
-    Object.assign(b,fields); this.save(); return {ok:true};
+    Object.assign(b,fields); this.save(); return {ok:true,refund:h.holdDeposit||0};
   },
 
   adminCancelBooking(bookingId) {
@@ -394,21 +395,21 @@ const AppState = {
     b.status='cancelled-admin';
     const h=SPYDEE_DATA.hoardings.find(x=>x.id===b.hoardingId);
     if(h) h.status='available';
-    this.save(); return {ok:true};
+    this.save(); return {ok:true,refund:h.holdDeposit||0};
   },
 
   adminDeleteHoarding(hId) {
     const idx=SPYDEE_DATA.hoardings.findIndex(x=>x.id===hId);
     if(idx===-1) return {ok:false};
     SPYDEE_DATA.hoardings.splice(idx,1);
-    this.save(); return {ok:true};
+    this.save(); return {ok:true,refund:h.holdDeposit||0};
   },
 
   adminAdjustPrice(hId,newPrice) {
     const h=SPYDEE_DATA.hoardings.find(x=>x.id===hId);
     if(!h) return {ok:false};
     h.basePriceMonthly=Number(newPrice);
-    this.save(); return {ok:true};
+    this.save(); return {ok:true,refund:h.holdDeposit||0};
   },
 
   adminAssignPrinter(jobId,printerId) {
@@ -418,7 +419,7 @@ const AppState = {
     if(printerId) pj.status='in-progress';
     const printer=SPYDEE_DATA.users.find(u=>u.id===printerId);
     if(printer?.acceptedJobs) printer.acceptedJobs.push(jobId);
-    this.save(); return {ok:true};
+    this.save(); return {ok:true,refund:h.holdDeposit||0};
   },
 
   toggleHoardingVerify(hId) {
