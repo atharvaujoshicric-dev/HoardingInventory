@@ -75,14 +75,28 @@ function renderVendorView() {
             : myBookings.map(b => {
                 const h = SPYDEE_DATA.hoardings.find(x => x.id === b.hoardingId);
                 const cust = SPYDEE_DATA.users.find(u => u.id === b.customerId);
-                return `<div class="payout-card">
+                const pj = b.printJob ? SPYDEE_DATA.printJobs.find(j=>j.id===b.printJob) : null;
+              return `<div class="payout-card">
                   <div class="pc-info">
                     <strong>${h?.title}</strong>
-                    <span>${cust?.name}${cust?.company ? ' · ' + cust.company : ''} · ${b.month}</span>
+                    <span>${b.month} × ${b.durationMonths||1}mo</span>
                   </div>
                   <div class="pc-amount">
                     <span class="pc-total">${formatCurrency(b.basePriceMonthly)}</span>
                     <span class="pc-gst">+GST ${formatCurrency(b.gst)}</span>
+                  </div>
+                  <!-- FIX #11: Full advertiser contact shown to vendor -->
+                  <div class="pc-contact-expanded">
+                    <div class="pcc-header">👤 Advertiser Details</div>
+                    <div class="pcc-grid">
+                      <div class="pcc-item"><span>Name</span><strong>${cust?.name||'—'}</strong></div>
+                      ${cust?.company?`<div class="pcc-item"><span>Company</span><strong>${cust.company}</strong></div>`:''}
+                      <div class="pcc-item"><span>Mobile</span><a href="tel:${cust?.mobile}" class="pcc-link">${cust?.mobile||'—'}</a></div>
+                      <div class="pcc-item"><span>Email</span><a href="mailto:${cust?.email}" class="pcc-link">${cust?.email||'—'}</a></div>
+                      ${cust?.gst?`<div class="pcc-item"><span>GST No.</span><span class="gst-code">${cust.gst}</span></div>`:''}
+                      <div class="pcc-item"><span>Booked</span><span>${b.createdAt}</span></div>
+                      <div class="pcc-item"><span>Print Job</span><span>${pj ? '🖨 '+pj.status : '⏳ Not ordered'}</span></div>
+                    </div>
                   </div>
                   ${!b.proofOfPerf
                     ? `<div class="proof-alert">📸 Upload site photo as proof
@@ -113,6 +127,101 @@ function renderVendorView() {
               </div>`).join('')}
             </div>`}
         </div>
+
+        <!-- Enquiries from Customers -->
+        ${(()=>{
+          const enqs = AppState.getMyEnquiries();
+          if(!enqs.length) return '';
+          return `<div class="panel-box">
+            <h4>❓ Customer Enquiries <span class="count-badge" style="margin-left:8px">${enqs.filter(e=>!e.reply).length} pending</span></h4>
+            ${enqs.map(e => {
+              const cust = SPYDEE_DATA.users.find(u=>u.id===e.customerId);
+              const h2 = SPYDEE_DATA.hoardings.find(x=>x.id===e.hoardingId);
+              return `<div class="enquiry-vendor-card">
+                <div class="evc-header">
+                  <div class="evc-avatar">${cust?.name?.charAt(0)||'?'}</div>
+                  <div class="evc-info">
+                    <strong>${cust?.name||'Customer'}${cust?.company?' · '+cust.company:''}</strong>
+                    <span>Re: ${h2?.title?.split(' ').slice(0,3).join(' ')}</span>
+                    <span style="font-size:10px;color:var(--text-dim)">${timeAgo(e.ts)}</span>
+                  </div>
+                  <span class="status-badge status-${e.status==='replied'?'confirmed':'hold'}">${e.status}</span>
+                </div>
+                <div class="evc-question">"${e.text}"</div>
+                ${e.reply
+                  ? `<div class="evc-reply">Your reply: "${e.reply}"</div>`
+                  : `<div class="evc-reply-form">
+                       <input id="enq-reply-${e.id}" placeholder="Type your reply… (customer contact NOT shared yet)" style="width:100%;background:var(--bg-input);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:6px"/>
+                       <button onclick="vendorReplyEnquiry('${e.id}')" class="btn-xs-primary">Send Reply</button>
+                     </div>`}
+              </div>`;
+            }).join('')}
+          </div>`;
+        })()}
+
+        <!-- Board Analytics -->
+        <div class="panel-box">
+          <h4>📊 Board Analytics</h4>
+          ${myInventory.length === 0 ? '<p class="text-muted" style="font-size:13px">Add hoardings to see analytics.</p>' :
+          `<div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="text-align:left;padding:6px 8px;color:var(--text-muted)">Board</th>
+                  <th style="text-align:right;padding:6px 8px;color:var(--text-muted)">Views</th>
+                  <th style="text-align:right;padding:6px 8px;color:var(--text-muted)">Holds</th>
+                  <th style="text-align:right;padding:6px 8px;color:var(--text-muted)">Bookings</th>
+                  <th style="text-align:right;padding:6px 8px;color:var(--text-muted)">Conv%</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${myInventory.map(h => {
+                  const bks = SPYDEE_DATA.bookings.filter(b=>b.hoardingId===h.id&&b.status==='confirmed').length;
+                  const views = h.viewCount||0;
+                  const holds = h.holdAttempts||0;
+                  const conv = holds>0 ? Math.round(bks/holds*100) : 0;
+                  return `<tr style="border-bottom:1px solid var(--border-light)">
+                    <td style="padding:6px 8px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h.title}">${h.title.split(' ').slice(0,2).join(' ')}</td>
+                    <td style="text-align:right;padding:6px 8px;color:var(--teal)">${views}</td>
+                    <td style="text-align:right;padding:6px 8px;color:var(--amber)">${holds}</td>
+                    <td style="text-align:right;padding:6px 8px;color:var(--green)">${bks}</td>
+                    <td style="text-align:right;padding:6px 8px;color:${conv>50?'var(--green)':conv>20?'var(--amber)':'var(--text-muted)'}">${conv}%</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>`}
+        </div>
+
+        <!-- Payout Request -->
+        ${(()=>{
+          const wu = SPYDEE_DATA.users.find(u=>u.id===AppState.currentUser.id);
+          const pendingPayout = SPYDEE_DATA.payoutRequests.find(r=>r.vendorId===AppState.currentUser.id&&r.status==='pending');
+          return `<div class="panel-box">
+            <h4>💸 Wallet & Payout</h4>
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+              <div style="font-size:24px;font-weight:800;font-family:var(--font-mono);color:var(--green)">${formatCurrency(wu?.wallet||0)}</div>
+              <div style="font-size:12px;color:var(--text-muted)">Available Balance<br>Total Earned: ${formatCurrency(wu?.totalEarnings||0)}</div>
+            </div>
+            ${pendingPayout
+              ? `<div style="background:var(--amber-soft);border:1px solid rgba(245,166,35,0.3);border-radius:6px;padding:10px;font-size:13px;color:var(--amber)">
+                   ⏳ Payout of ${formatCurrency(pendingPayout.amount)} is pending admin approval.
+                 </div>`
+              : `<div style="display:flex;gap:8px;align-items:flex-end">
+                   <div class="form-group" style="flex:1;margin-bottom:0">
+                     <label>Request Payout Amount (₹)</label>
+                     <input type="number" id="payout-amount" placeholder="Min ₹500" min="500" max="${wu?.wallet||0}"
+                            style="background:var(--bg-input);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:6px;width:100%"/>
+                   </div>
+                   <button onclick="vendorRequestPayout()" class="btn-xs-primary" style="padding:9px 14px;height:38px">Request</button>
+                 </div>
+                 <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+                   ${[5000,10000,25000,50000].map(a=>`<button onclick="document.getElementById('payout-amount').value=${a}" class="btn-xs">${formatCurrency(a)}</button>`).join('')}
+                 </div>
+                 <p style="font-size:11px;color:var(--text-dim);margin-top:8px">Processed within 3 working days to your registered bank account.</p>`}
+          </div>`;
+        })()}
+
       </div>
     </div>
   </div>`;
@@ -274,14 +383,8 @@ function saveRedBox(hId) {
   const w = parseInt(overlay.style.width);
   const ht = parseInt(overlay.style.height);
 
-  h.redSquare = {
-    x: Math.round(x * scaleX),
-    y: Math.round(y * scaleY),
-    w: Math.round(w * scaleX),
-    h: Math.round(ht * scaleY),
-    // Also store display coords for re-rendering
-    dx: x, dy: y, dw: w, dh: ht
-  };
+  // Store both display coords (for re-rendering) and natural coords (for scaling)
+  h.redSquare = { dx: x, dy: y, dw: w, dh: ht };
   AppState.save();
   showToast('✅ Hoarding position saved!', 'success');
   // Refresh the backdrop to show the saved position
@@ -431,7 +534,6 @@ function gatherInventoryForm() {
     illumination: document.getElementById('inv-illum').value,
     printSpec: document.getElementById('inv-printspec').value,
     traffic: document.getElementById('inv-traffic').value,
-    redSquare: AppState._currentRedSquare || { x: 40, y: 30, w: 200, h: 100 }
   };
 }
 
@@ -479,21 +581,20 @@ function handleUploadHoardingImage(e, hId) {
   const files = Array.from(e.target.files);
   if (!files.length) return;
   const h = SPYDEE_DATA.hoardings.find(x => x.id === hId);
+  // Show uploading indicator
+  const grid = document.getElementById('photo-grid');
+  if (grid) grid.insertAdjacentHTML('beforeend', '<div class="photo-uploading">⏳ Compressing…</div>');
 
-  let loaded = 0;
+  let done = 0;
   files.forEach(file => {
-    const r = new FileReader();
-    r.onload = ev => {
-      AppState.uploadHoardingImage(hId, ev.target.result);
-      loaded++;
-      if (loaded === files.length) {
-        // Set active photo to first new one
+    compressAndUpload(file, hId, (ok) => {
+      done++;
+      if (done === files.length) {
         h._activePhotoIdx = (h.images?.length || 1) - 1;
-        showToast(`📷 ${loaded} photo${loaded>1?'s':''} uploaded!`, 'success');
+        showToast(`📷 ${done} photo${done>1?'s':''} uploaded!`, 'success');
         showPhotoEditor(hId);
       }
-    };
-    r.readAsDataURL(file);
+    });
   });
 }
 
@@ -679,4 +780,56 @@ function rsResizeStart(e, corner) {
     x: parseInt(overlay.style.left), y: parseInt(overlay.style.top),
     w: parseInt(overlay.style.width), h: parseInt(overlay.style.height)
   };
+}
+
+// ── Image compression before upload ──────────────────────────
+function compressAndUpload(file, hId, onDone) {
+  const MAX_W = 1200, MAX_H = 800, QUALITY = 0.78;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > MAX_W || height > MAX_H) {
+        const ratio = Math.min(MAX_W / width, MAX_H / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL('image/jpeg', QUALITY);
+      const sizeMB = (compressed.length / 1024 / 1024).toFixed(2);
+      console.log(`Compressed to ${sizeMB}MB (${width}×${height})`);
+      const result = AppState.uploadHoardingImage(hId, compressed);
+      if (result.ok) onDone(true);
+      else { showToast(result.msg || 'Upload failed.', 'error'); onDone(false); }
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Vendor-side enquiry reply ─────────────────────────────────
+function vendorReplyEnquiry(enqId) {
+  const val = document.getElementById(`enq-reply-${enqId}`)?.value?.trim();
+  if (!val) return showToast('Please type a reply.', 'error');
+  const result = AppState.replyEnquiry(enqId, val);
+  if (result.ok) { showToast('✅ Reply sent to customer!', 'success'); renderDashboard(); }
+  else showToast(result.msg || 'Failed.', 'error');
+}
+
+// ── Payout request ────────────────────────────────────────────
+function vendorRequestPayout() {
+  const amount = parseFloat(document.getElementById('payout-amount')?.value);
+  if (!amount || isNaN(amount)) return showToast('Enter a valid amount.', 'error');
+  const result = AppState.requestPayout(amount);
+  if (result.ok) { showToast(`💸 Payout of ${formatCurrency(amount)} requested!`, 'success'); renderDashboard(); }
+  else showToast(result.msg, 'error');
+}
+
+// ── Vendor messaging (from booking payout card) ───────────────
+function vendorOpenConversation(bookingId) {
+  showConversation(bookingId);
 }

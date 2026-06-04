@@ -13,6 +13,7 @@ function renderAdminView() {
     {id:'bookings',icon:'📋',label:'Bookings'},
     {id:'printjobs',icon:'⚙️',label:'Print Jobs'},
     {id:'revenue',icon:'💰',label:'Revenue'},
+    {id:'payouts',icon:'💸',label:'Payouts'},
   ];
   return `<div class="admin-view">
     <div class="admin-tab-bar">
@@ -27,6 +28,7 @@ function renderAdminView() {
       ${tab==='bookings'?renderAdminBookings():''}
       ${tab==='printjobs'?renderAdminPrintJobs():''}
       ${tab==='revenue'?renderAdminRevenue():''}
+      ${tab==='payouts'?renderAdminPayouts():''}
     </div>
   </div>`;
 }
@@ -793,7 +795,12 @@ function renderPrintJobCard(job,ctx) {
         <div class="spec-item"><span class="spec-icon">📐</span><div><strong>Dimensions</strong><p>${job.dimensions}</p></div></div>
         <div class="spec-item"><span class="spec-icon">🧵</span><div><strong>Material</strong><p>${job.material}</p></div></div>
         <div class="spec-item"><span class="spec-icon">🎨</span><div><strong>Print Spec</strong><p>${job.printSpec||'—'}</p></div></div>
-        <div class="spec-item"><span class="spec-icon">👤</span><div><strong>Client</strong><p>${customer?.name||'–'}${customer?.company?' ('+customer.company+')':''}</p></div></div>
+        <div class="spec-item"><span class="spec-icon">👤</span><div><strong>Client</strong>
+        <p>${customer?.name||'–'}${customer?.company?' · '+customer.company:''}</p>
+        <!-- FIX #12: printer sees customer contact -->
+        ${ctx!=='done'?`<p><a href="tel:${customer?.mobile}" style="color:var(--teal);font-size:11px">📱 ${customer?.mobile||'—'}</a></p>
+        <p><a href="mailto:${customer?.email}" style="color:var(--teal);font-size:11px">📧 ${customer?.email||'—'}</a></p>`:''}</div></div>
+      <div class="spec-item"><span class="spec-icon">🚚</span><div><strong>Delivery To</strong><p>${job.deliveryAddress||customer?.name||'—'}</p></div></div>
       </div>
 
       <!-- Artwork with upload/delete -->
@@ -867,4 +874,43 @@ function attachArtwork(e,jobId) {
 function handleDeleteArtwork(jobId) {
   if(!confirm('Remove artwork?')) return;
   AppState.deletePrintJobArtwork(jobId); showToast('Artwork removed.','success'); renderDashboard();
+}
+
+// ── Admin: Payout Requests Tab ────────────────────────────────
+function renderAdminPayouts() {
+  const reqs = SPYDEE_DATA.payoutRequests || [];
+  return `<div class="admin-section-full">
+    <div class="section-header-row">
+      <h3>💸 Payout Requests</h3>
+      <span class="count-badge">${reqs.filter(r=>r.status==='pending').length} pending</span>
+    </div>
+    ${reqs.length === 0 ? '<div class="empty-state">No payout requests yet.</div>' :
+    `<div class="admin-table-wrap"><div class="admin-table">
+      <div class="at-header" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">
+        <span>Vendor</span><span>Amount</span><span>Requested</span><span>Status</span><span>Actions</span>
+      </div>
+      ${reqs.map(r => {
+        const v = SPYDEE_DATA.users.find(u=>u.id===r.vendorId);
+        return `<div class="at-row" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">
+          <span><strong>${v?.name}</strong><br><small>${v?.company}</small></span>
+          <span style="font-family:var(--font-mono);color:var(--amber);font-weight:700">${formatCurrency(r.amount)}</span>
+          <span style="font-size:12px">${new Date(r.ts).toLocaleDateString('en-IN')}</span>
+          <span><span class="status-badge status-${r.status==='paid'?'confirmed':r.status==='rejected'?'cancelled':'hold'}">${r.status}</span></span>
+          <span style="display:flex;gap:6px">
+            ${r.status==='pending' ? `
+            <button onclick="adminApprovePayout('${r.id}')" class="umc-btn umc-green">✅ Approve</button>
+            <button onclick="adminRejectPayout('${r.id}')" class="umc-btn umc-red">✕ Reject</button>` : '—'}
+          </span>
+        </div>`;
+      }).join('')}
+    </div></div>`}
+  </div>`;
+}
+function adminApprovePayout(id) {
+  AppState.adminProcessPayout(id, true);
+  showToast('✅ Payout approved and processed.', 'success'); renderDashboard();
+}
+function adminRejectPayout(id) {
+  AppState.adminProcessPayout(id, false);
+  showToast('Payout rejected.', 'error'); renderDashboard();
 }
